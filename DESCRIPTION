@@ -1,9 +1,9 @@
 Package: gbnorm
-Title: What the Package Does (one line, title case)
+Title: Graph-based Normalization of RNA-seq data 
 Version: 0.0.0.9000
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Authors@R: person("Diem-Trang", "Tran", email = "ttdtrang@gmail.com", role = c("aut", "cre"))
+Description: implements graph-based normalization method for RNA-seq data 
 Depends: R (>= 3.4.4)
-License: What license is it under?
+License: GPL 
 Encoding: UTF-8
 LazyData: true
