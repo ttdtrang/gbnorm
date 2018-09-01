@@ -46,7 +46,7 @@ flatten_h5dataset <- function(dset) {
 }
 
 removeEnsemblVersion <- function(x) {
-     return(gsub("(ENS[A-Z]*[GT]\\d+)\\.(\\d+)", "\\1", x))
+     return(gsub("(ENS[A-Z]*[GT]\\d+)\\.(\\d+)$", "\\1", x))
 }
 
 jaccard.sim <- function(a,b) {
