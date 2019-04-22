@@ -64,13 +64,23 @@ get.references.v2 <- function(m,t=0.7,k=5) {
 #' Identify the best set of references
 #' 
 #' @export
-get.references.blocks <- function(m, py.prog,
+get.references.blocks <- function(m,
                                   cor.method='pearson',
                                   n.runs= 3, min.size = 10,
                                   min.corr = 0.75,
                                   min.count = 0,
                                   log.base = 2,
                                   debug = FALSE) {
+  
+    ## Make sure sbm is executable
+    block.cmd = paste("python3", system.file("python/sbm.py", package = "gbnorm"))
+    tryCatch(
+        system(block.cmd,ignore.stderr = TRUE, ignore.stdout = TRUE),
+        error = function(e) {
+            stop(e)
+        })
+    if (is.null(rownames(m))) rownames(m) <- 1:nrow(m)
+    if (is.null(colnames(m))) colnames(m) <- 1:ncol(m)
     
     ## Reduce the size of graph
     idx.allpresent = which (sapply(1:ncol(m), FUN = function(i) { return(all(m[,i] > min.count)) }))
@@ -88,7 +98,7 @@ get.references.blocks <- function(m, py.prog,
     oScoreFile = paste0(oPrefix, '.entropy')
     igraph::write.graph(g, file= gFileName, format='graphml')
     
-    system(paste('python3', PYPROG, gFileName, oPrefix, n.runs), wait=TRUE)
+    system(paste(block.cmd, gFileName, oPrefix, n.runs), wait=TRUE)
     
     blocks.entropy = read.table(oScoreFile)
     bestModel = which.min(blocks.entropy[,1]) 
@@ -119,14 +129,26 @@ get.references.blocks <- function(m, py.prog,
         blocks.df[i,'MinCor'] = min(c(tmpc))
         # blocks.df[i,'MedianCor'] = median(a(tmpc))
     }
+    output <- list(
+        'Id'= NULL,
+        'Name'= NULL,
+        'nVertices' = ncol(m),
+        'nVertices.compressed' = ncol(m.compressed)
+    )
     remains = which(blocks.df$MinCor > min.corr)
+    if (length(remains) == 0) {
+        message("No block satisfies mininum requirements.")
+        if (debug) {
+            message(blocks.df)
+        }
+        return(output)
+    }
     bId = remains[which.min(blocks.df[remains,'Rank1Residuals'])]
     ## Clean up and return
     if (!debug) system(paste('rm', gFileName, oLabelFile, oScoreFile))
-    return(list('Id'= blocks.members[[bId]],
-                'Name'= blocks.memNames[[bId]],
-                'nVertices' = ncol(m),
-                'nVertices.compressed' = ncol(m.compressed)))
+    output[['Id']] <- blocks.members[[bId]]
+    output[['Name']] <- blocks.members[[bId]]
+    return(output)
 }
 
 #' get.references.apcluster
