@@ -70,17 +70,22 @@ get.references.blocks <- function(m,
                                   min.corr = 0.75,
                                   min.count = 0,
                                   log.base = 2,
+                                  out.file = '',
                                   debug = FALSE) {
-  
+ 
+    if (system.file("python/sbm.py", package = "gbnorm") == "") {
+        stop("Python script not found. Cannot run sbm.py")
+    }
+    if (is.null(rownames(m))) rownames(m) <- 1:nrow(m)
+    if (is.null(colnames(m))) colnames(m) <- 1:ncol(m)
+
     ## Make sure sbm is executable
-    block.cmd = paste("python3", system.file("python/sbm.py", package = "gbnorm"))
+    sbm.cmd = paste("python3", system.file("python/sbm.py", package = "gbnorm"))
     tryCatch(
-        system(block.cmd,ignore.stderr = TRUE, ignore.stdout = TRUE),
+        system(sbm.cmd,ignore.stderr = TRUE, ignore.stdout = TRUE),
         error = function(e) {
             stop(e)
         })
-    if (is.null(rownames(m))) rownames(m) <- 1:nrow(m)
-    if (is.null(colnames(m))) colnames(m) <- 1:ncol(m)
     
     ## Reduce the size of graph
     idx.allpresent = which (sapply(1:ncol(m), FUN = function(i) { return(all(m[,i] > min.count)) }))
@@ -97,8 +102,11 @@ get.references.blocks <- function(m,
     oLabelFile = paste0(oPrefix, '.tsv')
     oScoreFile = paste0(oPrefix, '.entropy')
     igraph::write.graph(g, file= gFileName, format='graphml')
-    
-    system(paste(block.cmd, gFileName, oPrefix, n.runs), wait=TRUE)
+   
+    sbm.cmd <- paste(sbm.cmd, gFileName, oPrefix, n.runs)
+    message("Running blocks with the command")
+    message(sbm.cmd)
+    system(sbm.cmd, wait=TRUE)
     
     blocks.entropy = read.table(oScoreFile)
     bestModel = which.min(blocks.entropy[,1]) 
@@ -146,8 +154,10 @@ get.references.blocks <- function(m,
     bId = remains[which.min(blocks.df[remains,'Rank1Residuals'])]
     ## Clean up and return
     if (!debug) system(paste('rm', gFileName, oLabelFile, oScoreFile))
+    if (out.file == '') out.file <- paste0(oPrefix, '.RDS')
     output[['Id']] <- blocks.members[[bId]]
     output[['Name']] <- blocks.members[[bId]]
+    saveRDS(output, file = out.file)
     return(output)
 }
 
