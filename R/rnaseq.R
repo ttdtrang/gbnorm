@@ -156,7 +156,7 @@ get.references.blocks <- function(m,
     if (!debug) system(paste('rm', gFileName, oLabelFile, oScoreFile))
     if (out.file == '') out.file <- paste0(oPrefix, '.RDS')
     output[['Id']] <- blocks.members[[bId]]
-    output[['Name']] <- blocks.members[[bId]]
+    output[['Name']] <- blocks.memNames[[bId]]
     saveRDS(output, file = out.file)
     return(output)
 }
