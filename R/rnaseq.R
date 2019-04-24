@@ -164,7 +164,7 @@ get.references.blocks <- function(m,
 #' get.references.apcluster
 #' 
 #' Graph-based identify the set of references using affinity propagation as the underlying clustering method
-#' @import apcluster
+#' @importFrom apcluster apcluster
 #' @export
 get.references.apcluster <- function(m, 
                                      cor.method='pearson',
@@ -242,7 +242,7 @@ get.references.apcluster <- function(m,
 #' get.references.dbscan
 #' 
 #' Graph-based identify the set of references using DBSCAN as the underlying clustering method
-#' @import  dbscan
+#' @importFrom dbscan dbscan
 #' @export
 get.references.dbscan <- function(m, 
                                 cor.method='pearson',
