@@ -455,6 +455,7 @@ normalize.by.uq <- function(X, ...) {
 #' Call calcNormFactors by edgeR
 #' 
 #' @import edgeR
+#' @export
 normalize.by.tmm <- function(X,...) {
     effLibSizes = apply(X, 1, sum) * edgeR::calcNormFactors(t(X), method = 'TMM', group = group, ...) # effective library sizes
     sweep(X, 1, mean(effLibSizes) / effLibSizes, "*") %>%
@@ -465,6 +466,7 @@ normalize.by.tmm <- function(X,...) {
 #' 
 #' @import DESeq2
 #' @param X read count matrix with samples in rows and genes in columns
+#' @export
 normalize.by.deseq <- function(X, ...) {
     X %>%
         t() %>%
