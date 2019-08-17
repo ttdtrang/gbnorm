@@ -498,6 +498,35 @@ normalize.by.deges <- function(X, group, norm.method = 'tmm', test.method = 'edg
         return()
 }
 
+#' Normalize by RUVr
+#' 
+#' @import RUVSeq
+#' @export
+normalize.by.ruv_r <- function(X, group, ...) {
+    Xt <- t(X)
+    if (!is.factor(group)) group <- factor(group)
+    design <- model.matrix(~group, data=as.data.frame(Xt))
+    
+    y <- edgeR::DGEList(counts=Xt, group=group)
+    y <- edgeR::calcNormFactors(y, method="upperquartile")
+    y <- edgeR::estimateGLMCommonDisp(y, design)
+    y <- edgeR::estimateGLMTagwiseDisp(y, design)
+    
+    fit <- edgeR::glmFit(y, design)
+    res <- residuals(fit, type="deviance")
+    if (is.null(res)) {
+      message(str(y))
+    }
+    
+    Xt.normed <- log(Xt +1) %>%
+        RUVSeq::RUVr(1:nrow(Xt), k=1, res, round = FALSE, isLog = TRUE) %>%
+        `$`('normalizedCounts') %>%
+        exp() %>%
+        add(-1) %>%
+        t() %>%
+        return()
+}
+
 #' generic function for cross-validation
 #' 
 #' @param X read count matrix
