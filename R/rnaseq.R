@@ -427,7 +427,9 @@ normalize.by.refs <- function(X, ref.idx, scale = TRUE) {
         Xref = X[,ref.idx]
     }
     normFactors = apply(Xref,MARGIN = 1,FUN = sum)
-    normFactors = normFactors / geom.mean(normFactors)
+    if (scale) {
+        normFactors = normFactors / geom.mean(normFactors)
+    }
     # sanity check
     idx.zero = which(normFactors == 0)
     if (length(idx.zero) > 0) {
