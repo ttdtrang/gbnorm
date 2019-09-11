@@ -94,3 +94,11 @@ calc.f1score <- function(X, precision='precision', recall='recall', weight = c(1
     #     (X[[precision]] + X[[recall]])
     invisible(X)        
 }
+
+#' Geometric mean
+geom.mean <- function(x) {
+    log(x) %>%
+        mean(na.rm = TRUE) %>%
+        exp() %>%
+        return()
+}

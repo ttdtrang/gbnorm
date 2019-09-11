@@ -414,19 +414,20 @@ best.cluster <- function(clusters.df, features = c('Rank1Residuals', 'size'), we
     return(which.max(score))
 }
 
-#' normalize.by.refs
+#' Normalizing (global-scaling) using references 
 #' 
 #' normalize a read count matrix given the set of reference genes identified by id
 #' @param X a read-count matrix of the form samples x genes(transcripts)
 #' @param ref.idx an integer vector specifying the column indices of X to be used as reference
 #' @export
-normalize.by.refs <- function(X, ref.idx) {
+normalize.by.refs <- function(X, ref.idx, scale = TRUE) {
     if (length(ref.idx) == 1) { # need to be treated specially since dim(X) reduces to NULL and cause error in apply
         Xref = matrix(X[,ref.idx], ncol=1)
     } else {
         Xref = X[,ref.idx]
     }
     normFactors = apply(Xref,MARGIN = 1,FUN = sum)
+    normFactors = normFactors / geom.mean(normFactors)
     # sanity check
     idx.zero = which(normFactors == 0)
     if (length(idx.zero) > 0) {
