@@ -419,6 +419,7 @@ best.cluster <- function(clusters.df, features = c('Rank1Residuals', 'size'), we
 #' normalize a read count matrix given the set of reference genes identified by id
 #' @param X a read-count matrix of the form samples x genes(transcripts)
 #' @param ref.idx an integer vector specifying the column indices of X to be used as reference
+#' @param scale (default to TRUE) whether to scale the normalizing factors such that their geometric mean is 1
 #' @export
 normalize.by.refs <- function(X, ref.idx, scale = TRUE) {
     if (length(ref.idx) == 1) { # need to be treated specially since dim(X) reduces to NULL and cause error in apply
