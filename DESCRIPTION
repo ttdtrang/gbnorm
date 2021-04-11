@@ -7,12 +7,7 @@ Depends: R (>= 3.4.4)
 License: GPL 
 Encoding: UTF-8
 LazyData: true
-LinkingTo:
-    Rcpp,
-    RcppEigen
 Imports:
-    Rcpp,
-    RcppEigen,
     magrittr
 Suggests: 
     testthat
