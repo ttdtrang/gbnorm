@@ -41,7 +41,7 @@ fast.condNumber <- function(X) {
 
 #' the magnitude of the singular values except the first one
 #' 
-#' 
+#' @export
 rank1.residuals <- function(m) {
     m.sv = sv(m)
     return(norm(normalize.vec(m.sv)[-1], type='2'))
