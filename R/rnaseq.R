@@ -173,7 +173,8 @@ get.references.apcluster <- function(m,
                                      min.count = 0,
                                      med.quantile = 0.5,
                                      log.base = 2,
-                                     debug = FALSE,...) {
+                                     debug = FALSE,
+                                     verbose.output = FALSE, ...) {
     ## Reduce the size of graph
     isUniversal = sapply(1:ncol(m), FUN = function(i) { return(all(m[,i] > min.count)) })
     medium.threshold = sapply(1:nrow(m), function(i) {
@@ -203,11 +204,13 @@ get.references.apcluster <- function(m,
     dt2 = proc.time() - startT
     if (debug) {message(sprintf("Run AP clustering in %f sec.", dt2['elapsed']))}
     ## Mapping compressed id to original id
+    ## ClusterId: -1 indicates those removed from the graph, 0 those not belonging to any cluster, and number greater than 0 indicate cluster index
     cl.assignment = data.frame('Id' = 1:ncol(m),
                                'Name' = colnames(m),
-                               'ClusterId' = rep(0, ncol(m)),
+                               'ClusterId' = rep(-1, ncol(m)),
                                stringsAsFactors = FALSE)
     clSizes = sapply(apclust@clusters, length)
+    cl.assignment[idx.candidates,'ClusterId'] = 0
     for (cl in 1:length(apclust@clusters)) {
         cl.assignment[idx.candidates,][apclust@clusters[[cl]], 'ClusterId'] = cl
     }
@@ -233,10 +236,19 @@ get.references.apcluster <- function(m,
     ## best cluster scored by both rank1residuals and size, but weighted slighly more by rank1residuals
     cId = best.cluster(cl.df, features = c('Rank1Residuals', 'size'), weights = c(-0.7, 0.3))
     # if (debug) {print(cl.df)}
-    return(list('Id'= cl.members[[cId]],
-                'Name'= cl.memNames[[cId]],
-                'nVertices' = ncol(m),
-                'nVertices.compressed' = ncol(m.compressed)))
+    if (verbose.output) {
+        return(list(
+            'references' = list('Id'= cl.members[[cId]],
+                                'Name'= cl.memNames[[cId]]),
+            'graph' = list('nVertices' = ncol(m),
+                           'nVertices.compressed' = ncol(m.compressed),
+                           'nEdges' = length(which(cor.expcnt[upper.tri(cor.expcnt)] > 0)),
+            'clusters' = cl.assignment)
+        )
+    } else {
+        return(list('Id'= cl.members[[cId]],
+                    'Name'= cl.memNames[[cId]]))
+    }
 }
 
 #' get.references.dbscan
