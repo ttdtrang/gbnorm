@@ -242,7 +242,7 @@ get.references.apcluster <- function(m,
                                 'Name'= cl.memNames[[cId]]),
             'graph' = list('nVertices' = ncol(m),
                            'nVertices.compressed' = ncol(m.compressed),
-                           'nEdges' = length(which(cor.expcnt[upper.tri(cor.expcnt)] > 0)),
+                           'nEdges' = length(which(cor.expcnt[upper.tri(cor.expcnt)] > 0))),
             'clusters' = cl.assignment)
         )
     } else {
