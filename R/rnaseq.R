@@ -427,19 +427,18 @@ best.cluster <- function(clusters.df, features = c('Rank1Residuals', 'size'), we
 }
 
 #' Normalizing (global-scaling) using references 
-#' 
-#' normalize a read count matrix given the set of reference genes identified by id
-#' @param X a read-count matrix of the form samples x genes(transcripts)
+#'
+#' Normalize a read count matrix given the set of reference genes identified by id
+#' @param X a read-count matrix of the form genes x samples
 #' @param ref.idx an integer vector specifying the column indices of X to be used as reference
-#' @param scale (default to TRUE) whether to scale the normalizing factors such that their geometric mean is 1
 #' @export
 normalize.by.refs <- function(X, ref.idx, scale = TRUE) {
     if (length(ref.idx) == 1) { # need to be treated specially since dim(X) reduces to NULL and cause error in apply
-        Xref = matrix(X[,ref.idx], ncol=1)
+        Xref = matrix(X[ref.idx,], nrow=1)
     } else {
-        Xref = X[,ref.idx]
+        Xref = X[ref.idx,]
     }
-    normFactors = apply(Xref,MARGIN = 1,FUN = sum)
+    normFactors = colSums(Xref) # apply(Xref,MARGIN = 2,FUN = sum)
     if (scale) {
         normFactors = normFactors / geom.mean(normFactors)
     }
@@ -450,22 +449,37 @@ normalize.by.refs <- function(X, ref.idx, scale = TRUE) {
         return(NULL)
     }
     
-    X.norm = t(sapply(1:length(normFactors), FUN = function(i) {
-        return(X[i,] / normFactors[i])
-    }))
+    X.norm = sweep(X, MARGIN = 2, STATS = normFactors, FUN = '/')
     colnames(X.norm) = colnames(X)
     rownames(X.norm) = rownames(X)
     return(X.norm)
 }
+
+#' normalize.by.scaleFactors
+#'
+#' @param X count matrix in the form genes x samples
+#' @scaleFactors a vector of scaling factor, must be the same length as the number of samples
+#' @export
+normalize.by.scaleFactors <- function(X, scaleFactors) {
+    if (length(scaleFactors) != ncol(X)) {
+        stop("scaleFactors should have the same length as number of samples in the input matrix.")
+    }
+    X.normed = sapply(1:length(scaleFactors), FUN = function(j) {
+        return(X[,j]/scaleFactors[j])
+    })
+    `colnames<-`(X.normed, colnames(X))
+    return(X.normed)
+}
+
 
 #' Normalize by Upper Quantile
 #' 
 #' @import edgeR
 #' @export
 normalize.by.uq <- function(X, ...) {
-    effLibSizes = apply(X, 1, sum) * edgeR::calcNormFactors(t(X), method = 'upperquartile', ...) # effective library sizes
-    sweep(X, 1, mean(effLibSizes) / effLibSizes, "*") %>%
-      return()
+    effLibSizes = colSums(X) * edgeR::calcNormFactors(X, method = 'upperquartile', group = group, ...) # effective library sizes
+    sweep(X, 2, effLibSizes, "/") %>%
+        return()
 }
 
 #' Call calcNormFactors by edgeR
@@ -473,9 +487,9 @@ normalize.by.uq <- function(X, ...) {
 #' @import edgeR
 #' @export
 normalize.by.tmm <- function(X,...) {
-    effLibSizes = apply(X, 1, sum) * edgeR::calcNormFactors(t(X), method = 'TMM', group = group, ...) # effective library sizes
-    sweep(X, 1, mean(effLibSizes) / effLibSizes, "*") %>%
-      return()
+    effLibSizes = colSums(X) * edgeR::calcNormFactors(X, method = 'TMM', group = group, ...) # effective library sizes
+    sweep(X, 2, effLibSizes, "/") %>%
+        return()
 }
 
 #' Call estimateSizeFactorsForMatrix by DESeq2
@@ -484,10 +498,8 @@ normalize.by.tmm <- function(X,...) {
 #' @param X read count matrix with samples in rows and genes in columns
 #' @export
 normalize.by.deseq <- function(X, ...) {
-    X %>%
-        t() %>%
-        DESeq2::estimateSizeFactorsForMatrix(...) %>%
-        sweep(X, 1, ., "/")  %>%
+    DESeq2::estimateSizeFactorsForMatrix(X) %>%
+        sweep(X, 2, ., "/")  %>%
         return()
 }
 
@@ -496,9 +508,9 @@ normalize.by.deseq <- function(X, ...) {
 #' @import PoissonSeq
 #' @export
 normalize.by.poissonseq <- function(X, ...) {
-  PoissonSeq::PS.Est.Depth(t(X), ...) %>%
-    sweep(X, 1, ., "/") %>%
-    return()
+    PoissonSeq::PS.Est.Depth(X, ...) %>%
+        sweep(X, 2, ., "/") %>%
+        return()
 }
 
 #' Normalize by DEGES
@@ -506,11 +518,9 @@ normalize.by.poissonseq <- function(X, ...) {
 #' @import TCC
 #' @export
 normalize.by.deges <- function(X, group, norm.method = 'tmm', test.method = 'edger', iteration = 1) {
-    t(X) %>%
-        TCC::TCC(group) %>%
+   TCC::TCC(X, group) %>%
         TCC::calcNormFactors(norm.method = 'tmm', test.method = 'edger', iteration = iteration) %>%
         TCC::getNormalizedData() %>%
-        t() %>%
         return()
 }
 
@@ -519,11 +529,10 @@ normalize.by.deges <- function(X, group, norm.method = 'tmm', test.method = 'edg
 #' @import RUVSeq
 #' @export
 normalize.by.ruv_r <- function(X, group, ...) {
-    Xt <- t(X)
     if (!is.factor(group)) group <- factor(group)
-    design <- model.matrix(~group, data=as.data.frame(Xt))
+    design <- model.matrix(~group, data=as.data.frame(X))
     
-    y <- edgeR::DGEList(counts=Xt, group=group)
+    y <- edgeR::DGEList(counts=X, group=group)
     y <- edgeR::calcNormFactors(y, method="upperquartile")
     y <- edgeR::estimateGLMCommonDisp(y, design)
     y <- edgeR::estimateGLMTagwiseDisp(y, design)
@@ -531,16 +540,10 @@ normalize.by.ruv_r <- function(X, group, ...) {
     fit <- edgeR::glmFit(y, design)
     res <- residuals(fit, type="deviance")
     if (is.null(res)) {
-      message(str(y))
+        message(str(y))
     }
-    
-    Xt.normed <- log(Xt +1) %>%
-        RUVSeq::RUVr(1:nrow(Xt), k=1, res, round = FALSE, isLog = TRUE) %>%
-        `$`('normalizedCounts') %>%
-        exp() %>%
-        add(-1) %>%
-        t() %>%
-        return()
+    X.normed <- RUVSeq::RUVr(X, 1:nrow(X), k=1, res, round = FALSE)$normalizedCounts
+    return(X.normed)
 }
 
 #' generic function for cross-validation
