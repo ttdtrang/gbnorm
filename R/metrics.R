@@ -35,7 +35,7 @@ condNumber.norm <- function(X) {
 #' Since we only care about the ratio between first and last singular values,
 #' there's no need to calculate V'
 fast.condNumber <- function(X) {
-    sigmas = fast.sv(X)
+    sigmas = svd(X, nu = 0, nv = 0)[['d']]
     return(sigmas[1] / sigmas[length(sigmas)])
 }
 
