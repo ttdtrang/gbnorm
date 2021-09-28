@@ -1,4 +1,5 @@
-#' Condition-number-based deviation of X1 and X2
+#' Condition-number-based deviation of X and Y,
+#' for generally given X and Y.
 #'
 #' Much faster with thin matrix (nrow >> ncol).
 #'
@@ -7,7 +8,7 @@
 #' @param Y m x n matrix
 #' @param always.small [=TRUE] if set to TRUE, cdev will be calculate for the smaller version of transformation matrix
 #' @export
-cdev <- function(X, Y, always.small = TRUE) {
+cdev.generic <- function(X, Y, always.small = TRUE) {
     if (!all(dim(X) == dim(Y))) stop("cdev is only defined for 2 matrices with the same shape.")
     if (always.small & (dim(X)[2] > dim(X)[1])) {
         return(fast.condNumber(MASS::ginv(t(X)) %*% t(Y)))
@@ -16,15 +17,26 @@ cdev <- function(X, Y, always.small = TRUE) {
     }
 }
 
-
-#' Condition number of a matrix X
-condNumber <- function(X) {
-    sigmas = svd(X)[['d']]
-    return(sigmas[1] / sigmas[length(sigmas)])
+#' Condition-number-based deviation of X and Y,
+#' assuming X can be transformed into Y by scaling each columns with
+#' a coefficient.
+#'
+#' @param X a matrix
+#' @param Y another matrix with the same shape as X
+#' @param generic whether to use the generic definition of cdev, without assuming only column-scaling is involved between X and Y
+#' @export
+cdev <- function(X, Y, scale = FALSE, generic = FALSE, ...) {
+    if (generic) return(cdev.generic(X,Y,...))
+    # Pick one of the genes with minimum counts > 0,
+    # reverse-engineer the scaling factors
+    an_eligible_feature = which(apply(X, MARGIN = 1, min) > 0)[1]
+    scalingFactors = X[an_eligible_feature,] / Y[an_eligible_feature,]
+    return(cdev.from.scaling.factors(scalingFactors))
 }
 
-condNumber.norm <- function(X) {
-    return(norm(X,'2') %*% norm(MASS::ginv(X), '2'))
+#' @export
+cdev.from.scaling.factors <- function(scalingFactors) {
+    return(max(scalingFactors) / min(scalingFactors))
 }
 
 
