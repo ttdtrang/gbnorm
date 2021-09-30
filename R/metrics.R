@@ -75,3 +75,9 @@ sv <- function(X) {
 normalize.vec <- function(x) {
     return(x / sqrt(sum(x^2)))
 }
+
+#' Coefficient of variation
+#' 
+function(x) {
+    return(sd(x)/mean(x))
+}
