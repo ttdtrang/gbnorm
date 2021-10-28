@@ -239,12 +239,14 @@ get.references.apcluster <- function(m,
     # cId = which.min(cl.df[largest, 'Rank1Residuals'])
     ## best cluster scored by both rank1residuals and size, but weighted slighly more by rank1residuals
     # cId = best.cluster(cl.df, features = c('Rank1Residuals', 'size'), weights = c(-0.7, 0.3))
-    
+   
+    filtered_cl.idx = which(cl.df$size >= min.size) 
     ## alternatively, best cluster scored by coefficient of variation of the members, computed on un-normalized counts
     # cId = best.cluster(cl.df[cl.df$size >= min.size,], features = c('cv.median'), weights = -1)
-    cId = best.cluster(cl.df[cl.df$size >= min.size,], features = c('CVLogNormMean', 'Rank1Residuals'), weights = c(-0.7, -0.3))
+    cId = filtered_cl.idx[best.cluster(cl.df[filtered_cl.idx], features = c('CVLogNormMean', 'Rank1Residuals'), weights = c(-0.7, -0.3))]
     
-    # if (debug) {print(cl.df)}
+    
+    if (debug) {print(cl.df)}
     if (verbose.output) {
         return(list(
             'references' = list('Id'= cl.members[[cId]],
@@ -430,8 +432,8 @@ get.references.hclust <- function(m,
 }
 
 best.cluster <- function(clusters.df, features = c('Rank1Residuals', 'size'), weights = c(-0.5, 0.5)) {
-    cl.df <- standardize(clusters.df[,features,drop=FALSE], na.rm = TRUE)
-    score <- as.matrix(cl.df) %*% weights
+    # cl.df <- standardize(clusters.df[,features,drop=FALSE], na.rm = TRUE)
+    score <- as.matrix(cl.df[,features, drop=FALSE]) %*% weights
     # print(data.frame(cl.df, score = score))
     return(which.max(score))
 }
