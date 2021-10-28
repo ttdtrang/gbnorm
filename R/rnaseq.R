@@ -432,9 +432,9 @@ get.references.hclust <- function(m,
 }
 
 best.cluster <- function(clusters.df, features = c('Rank1Residuals', 'size'), weights = c(-0.5, 0.5)) {
-    # cl.df <- standardize(clusters.df[,features,drop=FALSE], na.rm = TRUE)
-    score <- as.matrix(cl.df[,features, drop=FALSE]) %*% weights
-    # print(data.frame(cl.df, score = score))
+    cl.df <- standardize(clusters.df[,features,drop=FALSE], na.rm = TRUE)
+    score <- as.matrix(cl.df) %*% weights
+    # print(data.frame(clusters.df, score = score))
     return(which.max(score))
 }
 
