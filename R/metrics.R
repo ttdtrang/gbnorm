@@ -76,8 +76,15 @@ normalize.vec <- function(x) {
     return(x / sqrt(sum(x^2)))
 }
 
-#' Coefficient of variation
+# #' Coefficient of variation
+# #' 
+# function(x) {
+#     return(sd(x)/mean(x))
+# }
+
+#' Coefficient of variation, unbiased estimate for log-normal variable
 #' 
-function(x) {
-    return(sd(x)/mean(x))
+cv.lognorm <- function(x, pseudocount = 1) {
+    return(sqrt(exp(sd(log(x+pseudocount))^2 ) - 1))
 }
+

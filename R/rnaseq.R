@@ -225,7 +225,9 @@ get.references.apcluster <- function(m,
         cl.raw_expr = m[,cl.members[[i]],drop=FALSE]
         if (length(cl.members[[i]]) >= 2) {
             cl.df[i,'Rank1Residuals'] = rank1.residuals(cl.raw_expr)
-            cl.df[i,'cv.median'] = median(apply(cl.raw_expr, 1, function(x) {return(sd(x) / mean(x))}))
+            # cl.df[i,'cv.median'] = median(apply(cl.raw_expr, 1, function(x) {return(sd(x) / mean(x))}))
+            # cl.df[i,'cv_lognorm.median'] = median(apply(cl.raw_expr, 1, function(x) {return(cv.lognorm(x, pseudocount = 1))}))
+            cl.df[i,'CVLogNormMean'] = mean(apply(cl.raw_expr, 1, function(x) {return(cv.lognorm(x, pseudocount = 1))}))
         } else {
             cl.df[i,'Rank1Residuals'] = NA
         }
@@ -239,7 +241,9 @@ get.references.apcluster <- function(m,
     # cId = best.cluster(cl.df, features = c('Rank1Residuals', 'size'), weights = c(-0.7, 0.3))
     
     ## alternatively, best cluster scored by coefficient of variation of the members, computed on un-normalized counts
-    cId = best.cluster(cl.df, features = c('cv.median'), weights = -1)
+    # cId = best.cluster(cl.df[cl.df$size >= min.size,], features = c('cv.median'), weights = -1)
+    cId = best.cluster(cl.df[cl.df$size >= min.size,], features = c('CVLogNormMean', 'Rank1Residuals'), weights = c(-0.7, -0.3))
+    
     # if (debug) {print(cl.df)}
     if (verbose.output) {
         return(list(
