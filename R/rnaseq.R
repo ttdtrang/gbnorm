@@ -163,7 +163,17 @@ get.references.blocks <- function(m,
 
 #' get.references.apcluster
 #' 
-#' Graph-based identify the set of references using affinity propagation as the underlying clustering method
+#' Graph-based identify the set of references using affinity propagation as the 
+#' underlying clustering method
+#' 
+#' @param m expression matrix, genes x samples (which will be transposed internally)
+#' @param cor.method [="pearson"] the correlation method used to construct edges between genes. Acceptable values are same as those of R base function `cor()`.
+#' @param min.size minimum size of the candidate refernece clusters
+#' @param min.count minimum count of a gene across all samples, for it to be retained in constructing the graph
+#' @param med.quantile the quantile above which a gene should be expressed in all samples, for it to be retained in constructing the graph
+#' @param log.base the base to log-transform the expression matrix
+#' @param debug whether to print additional information when running
+#' @param verbose.output whether to all clusters (in addition to the reference one) in the output
 #' @importFrom apcluster apcluster
 #' @export
 get.references.apcluster <- function(m, 
@@ -175,26 +185,28 @@ get.references.apcluster <- function(m,
                                      log.base = 2,
                                      debug = FALSE,
                                      verbose.output = FALSE, ...) {
+    ## Transpose the input count matrix
+    m = t(m)
     ## Reduce the size of graph
-    isUniversal = sapply(1:ncol(m), FUN = function(i) { return(all(m[,i] > min.count)) })
-    medium.threshold = sapply(1:nrow(m), function(i) {
-        (m[i,] > 0) %>%
+    isUniversal = sapply(1:ncol(mt), FUN = function(i) { return(all(mt[,i] > min.count)) })
+    medium.threshold = sapply(1:nrow(mt), function(i) {
+        (mt[i,] > 0) %>%
             which() %>%
-            `[`(m, i, .) %>%
+            `[`(mt, i, .) %>%
             quantile(probs = med.quantile) %>%
             return()
     })
-    isHighEnough = sapply(1:ncol(m), function(i) {
-        ((m[,i] - medium.threshold) > 0) %>%
+    isHighEnough = sapply(1:ncol(mt), function(i) {
+        ((mt[,i] - medium.threshold) > 0) %>%
             all() %>% return()
     })
     
     idx.candidates = (isUniversal & isHighEnough) %>% which()
-    m.compressed  = m[,idx.candidates]
-    if (log.base > 0) { m.compressed = log(m.compressed,base = log.base) }
+    mt.compressed  = mt[,idx.candidates]
+    if (log.base > 0) { mt.compressed = log(mt.compressed,base = log.base) }
     if (debug) {message(sprintf("Building compressed graph with %d vertices", length(idx.candidates)))}
     startT = proc.time()
-    cor.expcnt = cor(m.compressed,method=cor.method)
+    cor.expcnt = cor(mt.compressed,method=cor.method)
     dt1 = proc.time() - startT
     cor.expcnt[cor.expcnt < min.corr] <- 0
     if (debug) {message(sprintf("Calculate correlation in %f sec.", dt1['elapsed']))}
@@ -205,9 +217,9 @@ get.references.apcluster <- function(m,
     if (debug) {message(sprintf("Run AP clustering in %f sec.", dt2['elapsed']))}
     ## Mapping compressed id to original id
     ## ClusterId: -1 indicates those removed from the graph, 0 those not belonging to any cluster, and number greater than 0 indicate cluster index
-    cl.assignment = data.frame('Id' = 1:ncol(m),
-                               'Name' = colnames(m),
-                               'ClusterId' = rep(-1, ncol(m)),
+    cl.assignment = data.frame('Id' = 1:ncol(mt),
+                               'Name' = colnames(mt),
+                               'ClusterId' = rep(-1, ncol(mt)),
                                stringsAsFactors = FALSE)
     clSizes = sapply(apclust@clusters, length)
     cl.assignment[idx.candidates,'ClusterId'] = 0
@@ -222,11 +234,10 @@ get.references.apcluster <- function(m,
     for (i in 1:nrow(cl.df)) {
         cl.members[[i]] = cl.assignment[cl.assignment$ClusterId == i, 'Id' ]
         cl.memNames[[i]] = cl.assignment[cl.assignment$ClusterId == i, 'Name' ]
-        cl.raw_expr = m[,cl.members[[i]],drop=FALSE]
+        cl.raw_expr = mt[,cl.members[[i]],drop=FALSE]
         if (length(cl.members[[i]]) >= 2) {
             cl.df[i,'Rank1Residuals'] = rank1.residuals(cl.raw_expr)
-            # cl.df[i,'cv.median'] = median(apply(cl.raw_expr, 1, function(x) {return(sd(x) / mean(x))}))
-            # cl.df[i,'cv_lognorm.median'] = median(apply(cl.raw_expr, 1, function(x) {return(cv.lognorm(x, pseudocount = 1))}))
+            cl.df[i,'CVMean'] = mean(apply(cl.raw_expr, 1, function(x) {return(sd(x) / mean(x))}))
             cl.df[i,'CVLogNormMean'] = mean(apply(cl.raw_expr, 1, function(x) {return(cv.lognorm(x, pseudocount = 1))}))
         } else {
             cl.df[i,'Rank1Residuals'] = NA
@@ -243,7 +254,7 @@ get.references.apcluster <- function(m,
     filtered_cl.idx = which(cl.df$size >= min.size) 
     ## alternatively, best cluster scored by coefficient of variation of the members, computed on un-normalized counts
     # cId = best.cluster(cl.df[cl.df$size >= min.size,], features = c('cv.median'), weights = -1)
-    cId = filtered_cl.idx[best.cluster(cl.df[filtered_cl.idx], features = c('CVLogNormMean', 'Rank1Residuals'), weights = c(-0.7, -0.3))]
+    cId = filtered_cl.idx[best.cluster(cl.df[filtered_cl.idx,], features = c('CVLogNormMean', 'Rank1Residuals'), weights = c(-0.7, -0.3))]
     
     
     if (debug) {print(cl.df)}
@@ -251,8 +262,8 @@ get.references.apcluster <- function(m,
         return(list(
             'references' = list('Id'= cl.members[[cId]],
                                 'Name'= cl.memNames[[cId]]),
-            'graph' = list('nVertices' = ncol(m),
-                           'nVertices.compressed' = ncol(m.compressed),
+            'graph' = list('nVertices' = ncol(mt),
+                           'nVertices.compressed' = ncol(mt.compressed),
                            'nEdges' = length(which(cor.expcnt[upper.tri(cor.expcnt)] > 0))),
             'clusters' = cl.assignment)
         )
@@ -275,26 +286,27 @@ get.references.dbscan <- function(m,
                                 log.base = 2,
                                 eps = 0.1,
                                 debug = FALSE,...) {
+    mt = t(m)
     ## Reduce the size of graph
-    isUniversal = sapply(1:ncol(m), FUN = function(i) { return(all(m[,i] > min.count)) })
-    medium.threshold = sapply(1:nrow(m), function(i) {
-        (m[i,] > 0) %>%
+    isUniversal = sapply(1:ncol(mt), FUN = function(i) { return(all(mt[,i] > min.count)) })
+    medium.threshold = sapply(1:nrow(mt), function(i) {
+        (mt[i,] > 0) %>%
             which() %>%
-            `[`(m, i, .) %>%
+            `[`(mt, i, .) %>%
             quantile(probs = med.quantile) %>%
             return()
     })
-    isHighEnough = sapply(1:ncol(m), function(i) {
-        ((m[,i] - medium.threshold) > 0) %>%
+    isHighEnough = sapply(1:ncol(mt), function(i) {
+        ((mt[,i] - medium.threshold) > 0) %>%
             all() %>% return()
     })
     
     idx.candidates = (isUniversal & isHighEnough) %>% which()
-    m.compressed  = m[,idx.candidates]
-    if (log.base > 0) { m.compressed = log(m.compressed,base = log.base) }
+    mt.compressed  = mt[,idx.candidates]
+    if (log.base > 0) { mt.compressed = log(mt.compressed,base = log.base) }
     if (debug) {message(sprintf("Building compressed graph with %d vertices", length(idx.candidates)))}
     startT = proc.time()
-    cor.expcnt = cor(m.compressed,method=cor.method, use = 'pairwise.complete')
+    cor.expcnt = cor(mt.compressed,method=cor.method, use = 'pairwise.complete')
     dt1 = proc.time() - startT
     if (debug) {message(sprintf("Calculate correlation in %f sec.", dt1['elapsed']))}
     
@@ -313,9 +325,9 @@ get.references.dbscan <- function(m,
     if (debug) {message(sprintf("Run DBSCAN in %f sec.", dt2['elapsed']))}
     if (debug) {print(clust)}
     ## Mapping compressed id to original id
-    cl.assignment = data.frame('Id' = 1:ncol(m),
-                               'Name' = colnames(m),
-                               'ClusterId' = rep(0, ncol(m)))
+    cl.assignment = data.frame('Id' = 1:ncol(mt),
+                               'Name' = colnames(mt),
+                               'ClusterId' = rep(0, ncol(mt)))
     cl.assignment[idx.candidates, 'ClusterId'] = clust$cluster
     cl.assignment[idx.candidates, 'ClusterId'] = clust$cluster
     
@@ -326,7 +338,7 @@ get.references.dbscan <- function(m,
         cl.members[[i]] = cl.assignment[cl.assignment$ClusterId == i, 'Id' ]
         cl.memNames[[i]] = cl.assignment[cl.assignment$ClusterId == i, 'Name' ]
         if (length(cl.members[[i]]) >= min.size) {
-            cl.df[i,'Rank1Residuals'] = rank1.residuals(m[,cl.members[[i]] ])
+            cl.df[i,'Rank1Residuals'] = rank1.residuals(mt[,cl.members[[i]] ])
         } else {
             cl.df[i,'Rank1Residuals'] = NA
         }
@@ -342,8 +354,8 @@ get.references.dbscan <- function(m,
     if (debug) {message(sprintf("selected cluster: %s", cId))}
     return(list('Id'= cl.members[[cId]],
                 'Name'= cl.memNames[[cId]],
-                'nVertices' = ncol(m),
-                'nVertices.compressed' = ncol(m.compressed)))
+                'nVertices' = ncol(mt),
+                'nVertices.compressed' = ncol(mt.compressed)))
     
 }
 
@@ -359,26 +371,27 @@ get.references.hclust <- function(m,
                                   med.quantile = 0.5,
                                   log.base = 2,
                                   debug = FALSE) {
+    mt = t(m)
     ## Reduce the size of graph
-    isUniversal = sapply(1:ncol(m), FUN = function(i) { return(all(m[,i] > min.count)) })
-    medium.threshold = sapply(1:nrow(m), function(i) {
-        (m[i,] > 0) %>%
+    isUniversal = sapply(1:ncol(mt), FUN = function(i) { return(all(mt[,i] > min.count)) })
+    medium.threshold = sapply(1:nrow(mt), function(i) {
+        (mt[i,] > 0) %>%
             which() %>%
-            `[`(m, i, .) %>%
+            `[`(mt, i, .) %>%
             quantile(probs = med.quantile) %>%
             return()
     })
-    isHighEnough = sapply(1:ncol(m), function(i) {
-        ((m[,i] - medium.threshold) > 0) %>%
+    isHighEnough = sapply(1:ncol(mt), function(i) {
+        ((mt[,i] - medium.threshold) > 0) %>%
             all() %>% return()
     })
     
     idx.candidates = (isUniversal & isHighEnough) %>% which()
-    m.compressed  = m[,idx.candidates]
-    if (log.base > 0) { m.compressed = log(m.compressed,base = log.base) }
+    mt.compressed  = mt[,idx.candidates]
+    if (log.base > 0) { mt.compressed = log(mt.compressed,base = log.base) }
     if (debug) {message(sprintf("Building compressed graph with %d vertices", length(idx.candidates)))}
     startT = proc.time()
-    corM = cor(m.compressed,method=cor.method)
+    corM = cor(mt.compressed,method=cor.method)
     dt1 = proc.time() - startT
     corM[corM < min.corr ] <- 0
     if (debug) {message(sprintf("Calculate correlation in %f sec.", dt1['elapsed']))}
@@ -399,14 +412,14 @@ get.references.hclust <- function(m,
     if (debug) { message(str(clust)) } 
     
     ## Mapping compressed id to original id
-    cl.assignment = data.frame('Id' = 1:ncol(m), 'Name' = colnames(m), 'ClusterId' = rep(0, ncol(m)))
+    cl.assignment = data.frame('Id' = 1:ncol(mt), 'Name' = colnames(mt), 'ClusterId' = rep(0, ncol(mt)))
     cl.assignment[idx.candidates, 'ClusterId'] = clust
    
     cl.members = list()
     cl.memNames = list()
     cl.df = data.frame('ClusterId' = as.numeric(names(table(clust))))
     for (i in 1:nrow(cl.df)) {
-        cl.raw_expr = m[,cl.members[[i]] ]
+        cl.raw_expr = mt[,cl.members[[i]] ]
         cl.members[[i]] = cl.assignment[cl.assignment$ClusterId == i, 'Id' ]
         cl.memNames[[i]] = cl.assignment[cl.assignment$ClusterId == i, 'Name' ]
         cl.df[i,'nReferences'] = length(grep('ERCC',x = cl.memNames[[i]]))
@@ -427,12 +440,13 @@ get.references.hclust <- function(m,
     # if (debug) {print(cl.df)}
     return(list('Id'= cl.members[[cId]],
                 'Name'= cl.memNames[[cId]],
-                'nVertices' = ncol(m),
-                'nVertices.compressed' = ncol(m.compressed)))
+                'nVertices' = ncol(mt),
+                'nVertices.compressed' = ncol(mt.compressed)))
 }
 
 best.cluster <- function(clusters.df, features = c('Rank1Residuals', 'size'), weights = c(-0.5, 0.5)) {
-    cl.df <- standardize(clusters.df[,features,drop=FALSE], na.rm = TRUE)
+    # cl.df <- standardize(clusters.df[,features,drop=FALSE], na.rm = TRUE)
+    cl.df = clusters.df[,features,drop=FALSE]
     score <- as.matrix(cl.df) %*% weights
     # print(data.frame(clusters.df, score = score))
     return(which.max(score))
