@@ -484,7 +484,7 @@ normalize.by.refs <- function(X, ref.idx, scale = TRUE) {
 #' normalize.by.scaleFactors
 #'
 #' @param X count matrix in the form genes x samples
-#' @scaleFactors a vector of scaling factor, must be the same length as the number of samples
+#' @param scaleFactors a vector of scaling factor, must be the same length as the number of samples
 #' @export
 normalize.by.scaleFactors <- function(X, scaleFactors) {
     if (length(scaleFactors) != ncol(X)) {

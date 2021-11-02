@@ -5,12 +5,12 @@
 
 #' simulate.counts
 #' 
-#' @param ngenes
-#' @param nlibs1
-#' @param nlibs2
-#' @param percentDE
-#' @param expected.lib.size
-#' @param random.seed [NULL]
+#' @param ngenes Number of genes
+#' @param nlibs1 Number of samples for condition 1
+#' @param nlibs2 Number of samples for condition 2
+#' @param percentDE Percentage of differential genes
+#' @param expected.lib.size Expected library size (i.e. mean sequencing depth)
+#' @param random.seed [NULL]  Random seed
 #' @param use.invChisq [TRUE] Use inverse chi-square or log-normal dispersion
 #' @param symmetric Symmetric conditions have the same number of up-regulated genes
 #' @return an object with `counts` and `differential`. `counts` is the samples x genes matrix
